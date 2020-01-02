@@ -121,6 +121,10 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 		// In this app we start with VideoDataOutput frames on a high priority queue, and downstream consumers use default priority queues.
 		// Audio uses a default priority queue because we aren't monitoring it live and just want to get it into the movie.
 		// AudioDataOutput can tolerate more latency than VideoDataOutput as its buffers aren't allocated out of a fixed size pool.
+        // 在多线程的生产者和消费者系统中，最好确保生产者不要浪费CPU时间
+        // 在这个app中，我们开启视频输出帧使用默认的高优先级队列，并且下游的消费者使用默认的优先级队列
+        // 音频使用默认的优先级队列，因为我们不会实时监控它，只是想把它放入视频中
+        // 由于AudioDataOutput的缓冲区未从固定大小的池中分配出去，因此它比VideoDataOutput可以忍受更多的延迟
 		_videoDataOutputQueue = dispatch_queue_create( "com.apple.sample.capturepipeline.video", DISPATCH_QUEUE_SERIAL );
 		dispatch_set_target_queue( _videoDataOutputQueue, dispatch_get_global_queue( DISPATCH_QUEUE_PRIORITY_HIGH, 0 ) );
 		
@@ -154,10 +158,10 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 - (void)startRunning
 {
 	dispatch_sync( _sessionQueue, ^{
-        // step1.2 - 配置会话
 		[self setupCaptureSession];
 		
 		if ( _captureSession ) {
+            // step 1.2 启动会话
 			[_captureSession startRunning];
 			_running = YES;
 		}
@@ -198,19 +202,23 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 	
 #if RECORD_AUDIO
 	/* Audio */
+    // 添加音频设备
 	AVCaptureDevice *audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
 	AVCaptureDeviceInput *audioIn = [[AVCaptureDeviceInput alloc] initWithDevice:audioDevice error:nil];
+    // 添加音频输入
 	if ( [_captureSession canAddInput:audioIn] ) {
 		[_captureSession addInput:audioIn];
 	}
 //	[audioIn release];
 	
+    // 创建音频输出
 	AVCaptureAudioDataOutput *audioOut = [[AVCaptureAudioDataOutput alloc] init];
 	// Put audio on its own queue to ensure that our video processing doesn't cause us to drop audio
 	dispatch_queue_t audioCaptureQueue = dispatch_queue_create( "com.apple.sample.capturepipeline.audio", DISPATCH_QUEUE_SERIAL );
 	[audioOut setSampleBufferDelegate:self queue:audioCaptureQueue];
 //	[audioCaptureQueue release];
 	
+    // 添加音频输出
 	if ( [_captureSession canAddOutput:audioOut] ) {
 		[_captureSession addOutput:audioOut];
 	}
@@ -219,6 +227,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 #endif // RECORD_AUDIO
 	
 	/* Video */
+    // 添加视频设备
 	AVCaptureDevice *videoDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeVideo];
 	NSError *videoDeviceError = nil;
     // 设置录像输入
@@ -525,7 +534,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 	}
 }
 
-// step3.1 - 渲染视频帧缓冲区
+// step3.1 - 渲染视频帧缓存
 - (void)renderVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer
 {
 	CVPixelBufferRef renderedPixelBuffer = NULL;
@@ -538,9 +547,9 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 	@synchronized( _renderer )
 	{
 		if ( _renderingEnabled ) {
-            // 获取视频帧的像素缓冲区
+            // 获取视频帧的像素缓存
 			CVPixelBufferRef sourcePixelBuffer = CMSampleBufferGetImageBuffer( sampleBuffer );
-            // 获取像素渲染缓冲区
+            // 获取像素渲染缓存
 			renderedPixelBuffer = [_renderer copyRenderedPixelBuffer:sourcePixelBuffer];
 		}
 		else {
@@ -556,7 +565,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 			[self outputPreviewPixelBuffer:renderedPixelBuffer];
 			
 			if ( _recordingStatus == RosyWriterRecordingStatusRecording ) {
-                // 调用MovieRecorder的appendVideoPixelBuffer方法添加到视频像素缓冲区，渲染
+                // 调用MovieRecorder的appendVideoPixelBuffer方法添加到视频像素缓存，渲染
 				[_recorder appendVideoPixelBuffer:renderedPixelBuffer withPresentationTime:timestamp];
 			}
 		}
@@ -669,6 +678,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 	}
 }
 
+// step4.1 - 录制停止的代理方法
 - (void)movieRecorderDidFinishRecording:(MovieRecorder *)recorder
 {
 	@synchronized( self )
@@ -684,6 +694,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 	
 	_recorder = nil;
 	
+    // step4.2 - 将录制的视频保存到相册
 	ALAssetsLibrary *library = [[ALAssetsLibrary alloc] init];
 	[library writeVideoAtPathToSavedPhotosAlbum:_recordingURL completionBlock:^(NSURL *assetURL, NSError *error) {
 		

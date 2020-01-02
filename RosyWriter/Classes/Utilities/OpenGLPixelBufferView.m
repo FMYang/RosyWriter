@@ -109,7 +109,7 @@ enum {
 	return self;
 }
 
-// 初始化缓冲区
+// 初始化缓存
 - (BOOL)initializeBuffers
 {
 	BOOL success = YES;
@@ -208,6 +208,7 @@ bail:
 	[self reset];
 }
 
+// step3.4 - 使用OpenGL ES的API绘制缓存的内容到CAEAGLLayer上，显示预览
 - (void)displayPixelBuffer:(CVPixelBufferRef)pixelBuffer
 {
     // 顶点坐标
@@ -241,7 +242,7 @@ bail:
 	}
 	
 	// Create a CVOpenGLESTexture from a CVPixelBufferRef
-    // 从缓存创建CVOpenGLESTexture
+    // 从缓存创建纹理
 	size_t frameWidth = CVPixelBufferGetWidth( pixelBuffer );
 	size_t frameHeight = CVPixelBufferGetHeight( pixelBuffer );
 	CVOpenGLESTextureRef texture = NULL;
@@ -297,7 +298,7 @@ bail:
 	// Perform a vertical flip by swapping the top left and the bottom left coordinate.
 	// CVPixelBuffers have a top left origin and OpenGL has a bottom left origin.
     // 切换坐标系
-    // CVPixelBuffers的坐标系远点是左上角，OpenGL的是左下角
+    // CVPixelBuffers的坐标系原点是左上角，OpenGL的是左下角
 	GLfloat passThroughTextureVertices[] = {
 		( 1.0 - textureSamplingSize.width ) / 2.0, ( 1.0 + textureSamplingSize.height ) / 2.0, // top left
 		( 1.0 + textureSamplingSize.width ) / 2.0, ( 1.0 + textureSamplingSize.height ) / 2.0, // top right
