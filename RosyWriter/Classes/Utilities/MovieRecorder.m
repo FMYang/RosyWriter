@@ -328,6 +328,7 @@ typedef NS_ENUM( NSInteger, MovieRecorderStatus ) {
 			
 			if ( input.readyForMoreMediaData )
 			{
+                // step3.5 - 将缓存写入视频
 				BOOL success = [input appendSampleBuffer:sampleBuffer];
 				if ( ! success ) {
 					NSError *error = _assetWriter.error;

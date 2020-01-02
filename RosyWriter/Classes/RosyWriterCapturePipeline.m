@@ -565,7 +565,7 @@ typedef NS_ENUM( NSInteger, RosyWriterRecordingStatus )
 			[self outputPreviewPixelBuffer:renderedPixelBuffer];
 			
 			if ( _recordingStatus == RosyWriterRecordingStatusRecording ) {
-                // 调用MovieRecorder的appendVideoPixelBuffer方法添加到视频像素缓存，渲染
+                // step3.2.1 调用MovieRecorder的appendVideoPixelBuffer方法添加到视频像素缓存，渲染
 				[_recorder appendVideoPixelBuffer:renderedPixelBuffer withPresentationTime:timestamp];
 			}
 		}
